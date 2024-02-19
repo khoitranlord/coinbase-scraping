@@ -13,68 +13,61 @@ from bs4 import BeautifulSoup as bs
 import csv
 from itertools import zip_longest
 
-
-page = rq.get('https://www.coindesk.com/data/')
-
+page_url = "https://www.coindesk.com/tag/news/"
 
 
-list_name = []
-list_abbr = []
-list_price = []
-list_rate = []
+list_article_name = []
+list_authors = []
 
-def main(page):
 
-    src = page.content    # == page.text
+def get_page_data(page_url, page_number):
     
+    page = rq.get(f"{page_url}/{page_number}/")
+    src = page.content    # == page.text
     soup = bs(src, 'lxml')
 
 
 
-    name_coin = soup.find_all("span", {'class': 'typography__StyledTypography-owin6q-0 gtxndB'})
+    # Get article names
+    article_names = soup.find_all("a", {'class': 'card-title'})
+    
+    remove_article_string = [ "Crypto News Roundup"]
+
+    for name in article_names :
+        
+        if any(remove_str in name.text for remove_str in remove_article_string) or name.text == "": 
+            continue
+
+        list_article_name.append(name.text)
+        
+    # Get author names
+    authors_names = soup.find_all("span", {'class': 'typography__StyledTypography-sc-owin6q-0 hirYAs'})
+
+    remove_author_string= ["", "Sponsored", "Subscribe", "Upcoming Events", "See All Newsletters"]
+    
+    for name in authors_names :
+        if (name.text in remove_author_string ) :
+            continue
+
+        list_authors.append(name.text)
 
 
-    for name in name_coin :
 
-        list_name.append(name.text)
-
-    abbreviation = soup.find_all("span", {'class': 'typography__StyledTypography-owin6q-0 fUOSEs'})
-
-
-    for abb in abbreviation :
-
-        if abb.text !='24H' :
-
-            list_abbr.append(abb.text)
-
-
-    prices = soup.find_all("h6", {'class': 'typography__StyledTypography-owin6q-0 brrRIQ'}) 
-
-    for price in prices :
-
-        list_price.append(price.text)
-
-
-    rates = soup.find_all("div", {'class': 'percentage'})
-
-    for rate in rates :
-
-        list_rate.append(rate.text)
-
-
-    file_list = [list_name, list_abbr, list_price, list_rate]
+    file_list = [list_article_name, list_authors]
 
     exported = zip_longest(*file_list)
 
 
-    with open('coin.csv', 'w') as csv_file :
+    with open('coindesk-data.csv', 'a') as csv_file :
 
         writer = csv.writer(csv_file)
-        writer.writerow(["Coin Name", "abbreviation", "Price in relation to the dollar", "The rate high or low in last 24 hours"])
+        # writer.writerow(["Coin Name", "abbreviation", "Price in relation to the dollar", "The rate high or low in last 24 hours"])
+        if page_number == 1: 
+            writer.writerow(["Article Name", "Authors"])
         writer.writerows(exported)
         print("All Done!")
 
 
 
-
-main(page)
+for i in range(1, 10):
+    get_page_data(page_url, i)
